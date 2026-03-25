@@ -1,16 +1,13 @@
+from flask import Flask, request, render_template_string
 import random
-import sys
-import csv
-import time
 
-# --- Диапазоны датчиков ---
+app = Flask(__name__)
+
 LIMITS = {
     "Öldruck": (1.5, 4.5),
     "Temperatur": (80, 110),
     "Drehzahl": (800, 4000)
 }
-
-errors = []
 
 def check_sensor(name, value, low, high):
     if value < low:
@@ -20,55 +17,63 @@ def check_sensor(name, value, low, high):
     return None
 
 def simulate_cycle(cycle, rpm_value):
-    """Симуляция одного цикла с оборотами из Input"""
-    print(f"\n--- Zyklus {cycle} ---")
-    
-    # Случайное давление и температура
-    oil = round(random.uniform(LIMITS["Öldruck"][0]-0.5, LIMITS["Öldruck"][1]+1.0), 2)
-    temp = round(random.uniform(LIMITS["Temperatur"][0]-5, LIMITS["Temperatur"][1]+10), 2)
-    rpm = rpm_value
-    
+    oil = round(random.uniform(1.0, 5.0), 2)
+    temp = round(random.uniform(70, 120), 2)
+
+    results = []
     values = {
         "Öldruck": oil,
         "Temperatur": temp,
-        "Drehzahl": rpm
+        "Drehzahl": rpm_value
     }
-    
+
     for sensor, value in values.items():
         low, high = LIMITS[sensor]
         error = check_sensor(sensor, value, low, high)
         if error:
-            print(f"⚠️ FEHLER: {error}")
-            errors.append(f"Zyklus {cycle}: {error}")
+            results.append(f"⚠️ {error}")
         else:
-            print(f"{sensor}: {value} OK")
+            results.append(f"{sensor}: {value} OK")
 
-# --- Чтение оборотов из вкладки Input ---
-print("--- ECU SIMULATION: Ввод оборотов через Input ---")
-print("Вставьте числа оборотов по одному в каждой строке.")
+    return results
 
-reader = csv.reader(sys.stdin)  # stdin = вкладка Input
-cycle_number = 1
+HTML = """
+<h1>ECU Simulator</h1>
+<form method="post">
+<textarea name="rpm" rows="10" cols="30" placeholder="Введите обороты по строкам"></textarea><br><br>
+<button type="submit">Запустить</button>
+</form>
 
-for row in reader:
-    if not row:
-        continue
-    try:
-        rpm_value = float(row[0].strip())
-        simulate_cycle(cycle_number, rpm_value)
-        cycle_number += 1
-        time.sleep(0.3)  # имитация времени
-    except (ValueError, IndexError):
-        continue
+{% if output %}
+<h2>Результат:</h2>
+<pre>
+{% for line in output %}
+{{ line }}
+{% endfor %}
+</pre>
+{% endif %}
+"""
 
-# --- Сохранение логов ---
-with open("ecu_error_log.txt", "w") as f:
-    f.write("ECU Test Report\n")
-    f.write("=================\n\n")
-    if errors:
-        for err in errors:
-            f.write(err + "\n")
-    else:
-        f.write("Keine Fehler erkannt.\n")
+@app.route("/", methods=["GET", "POST"])
+def index():
+    output = []
+    if request.method == "POST":
+        data = request.form["rpm"].splitlines()
+        cycle = 1
 
-print("\nTest abgeschlossen. Bericht gespeichert als ecu_error_log.txt")
+        for line in data:
+            if not line.strip():
+                continue
+            try:
+                rpm = float(line.strip())
+                output.append(f"\n--- Zyklus {cycle} ---")
+                result = simulate_cycle(cycle, rpm)
+                output.extend(result)
+                cycle += 1
+            except:
+                output.append(f"Ошибка в строке: {line}")
+
+    return render_template_string(HTML, output=output)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
