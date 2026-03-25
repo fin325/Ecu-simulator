@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string
+from flask import Flask, request
 import random
 
 app = Flask(__name__)
@@ -17,63 +17,55 @@ def check_sensor(name, value, low, high):
     return None
 
 def simulate_cycle(cycle, rpm_value):
+    output = f"\n--- Zyklus {cycle} ---\n"
+
     oil = round(random.uniform(1.0, 5.0), 2)
     temp = round(random.uniform(70, 120), 2)
+    rpm = rpm_value
 
-    results = []
     values = {
         "Öldruck": oil,
         "Temperatur": temp,
-        "Drehzahl": rpm_value
+        "Drehzahl": rpm
     }
 
     for sensor, value in values.items():
         low, high = LIMITS[sensor]
         error = check_sensor(sensor, value, low, high)
+
         if error:
-            results.append(f"⚠️ {error}")
+            output += f"⚠️ FEHLER: {error}\n"
         else:
-            results.append(f"{sensor}: {value} OK")
+            output += f"{sensor}: {value} OK\n"
 
-    return results
-
-HTML = """
-<h1>ECU Simulator</h1>
-<form method="post">
-<textarea name="rpm" rows="10" cols="30" placeholder="Введите обороты по строкам"></textarea><br><br>
-<button type="submit">Запустить</button>
-</form>
-
-{% if output %}
-<h2>Результат:</h2>
-<pre>
-{% for line in output %}
-{{ line }}
-{% endfor %}
-</pre>
-{% endif %}
-"""
+    return output
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    output = []
-    if request.method == "POST":
-        data = request.form["rpm"].splitlines()
-        cycle = 1
+    result = ""
 
-        for line in data:
-            if not line.strip():
-                continue
+    if request.method == "POST":
+        data = request.form["rpm"]
+        lines = data.splitlines()
+
+        cycle = 1
+        for line in lines:
             try:
-                rpm = float(line.strip())
-                output.append(f"\n--- Zyklus {cycle} ---")
-                result = simulate_cycle(cycle, rpm)
-                output.extend(result)
+                rpm_value = float(line.strip())
+                result += simulate_cycle(cycle, rpm_value)
                 cycle += 1
             except:
-                output.append(f"Ошибка в строке: {line}")
+                continue
 
-    return render_template_string(HTML, output=output)
+    return f"""
+    <h1>ECU Simulator</h1>
+    <form method="post">
+        <textarea name="rpm" rows="10" cols="30" placeholder="Введите обороты (по одному в строке)"></textarea><br><br>
+        <button type="submit">Start</button>
+    </form>
+    <pre>{result}</pre>
+    """
 
+# важно для Render
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run()
