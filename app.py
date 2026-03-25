@@ -43,7 +43,8 @@ def simulate_cycle(cycle, rpm_value):
 @app.route("/", methods=["GET", "POST"])
 def index():
     result = ""
-
+    data = ""
+    
     if request.method == "POST":
         data = request.form["rpm"]
         lines = data.splitlines()
@@ -58,12 +59,62 @@ def index():
                 continue
 
     return f"""
-    <h1>ECU Simulator</h1>
-    <form method="post">
-        <textarea name="rpm" rows="10" cols="30" placeholder="Введите обороты (по одному в строке)"></textarea><br><br>
-        <button type="submit">Start</button>
-    </form>
-    <pre>{result}</pre>
+    <html>
+    <head>
+      <title>ECU Simulator</title>
+      <style>
+        body {{
+          font-family: Arial, sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-top: 50px;
+          background-color: #f0f0f0;
+        }}
+        h1 {{
+          color: #333;
+        }}
+        textarea {{
+          width: 400px;
+          height: 200px;
+          font-size: 16px;
+          padding: 10px;
+          border-radius: 5px;
+          border: 1px solid #ccc;
+          resize: vertical;
+        }}
+        button {{
+          margin-top: 10px;
+          padding: 10px 20px;
+          font-size: 16px;
+          border-radius: 5px;
+          border: none;
+          background-color: #007bff;
+          color: white;
+          cursor: pointer;
+        }}
+        button:hover {{
+          background-color: #0056b3;
+        }}
+        pre {{
+          width: 80%;
+          background-color: #fff;
+          padding: 10px;
+          border-radius: 5px;
+          margin-top: 20px;
+          overflow-x: auto;
+        }}
+      </style>
+    </head>
+    <body>
+      <h1>ECU Simulator</h1>
+      <form method="post">
+          <textarea name="rpm" placeholder="Введите обороты (по одному в строке)">{data}</textarea><br>
+          <button type="submit">Start</button>
+      </form>
+      <pre>{result}</pre>
+    </body>
+    </html>
     """
 
 # важно для Render
